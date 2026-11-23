@@ -96,9 +96,9 @@ export class SessionController {
       return sendPaginated(
         res,
         result.sessions,
-        result.total,
-        result.page,
-        result.limit,
+        Number(result.total) || 0,
+        Number(result.page) || 1,
+        Number(result.limit) || 20,
         'Sessions listed successfully'
       );
     } catch (error) {

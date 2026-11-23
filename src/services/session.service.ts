@@ -319,7 +319,9 @@ export class SessionService {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = query;
-    const skip = (page - 1) * limit;
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 20;
+    const skip = (pageNum - 1) * limitNum;
 
     const where: any = { userId };
 
@@ -392,16 +394,16 @@ export class SessionService {
       prisma.aISession.count({ where }),
     ]);
 
-    const totalPages = Math.ceil(total / limit) || 1;
+    const totalPages = Math.ceil(total / limitNum) || 1;
 
     return {
       sessions,
       total,
-      page,
-      limit,
+      page: pageNum,
+      limit: limitNum,
       totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
+      hasNextPage: pageNum < totalPages,
+      hasPrevPage: pageNum > 1,
     };
   }
 
