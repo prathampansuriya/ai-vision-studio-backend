@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service.js';
 import { sendSuccess } from '../utils/response.js';
-import { HTTP_STATUS } from '@shared/constants/index.js';
+import { HTTP_STATUS } from '../../shared/constants/index.js';
 
 export class UserController {
   public static async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {

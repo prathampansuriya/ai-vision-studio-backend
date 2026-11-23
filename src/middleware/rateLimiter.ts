@@ -1,7 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import { Request, Response } from 'express';
 import { sendError } from '../utils/response.js';
-import { HTTP_STATUS, ERROR_CODES, RATE_LIMITS } from '@shared/constants/index.js';
+import { HTTP_STATUS, ERROR_CODES, RATE_LIMITS } from '../../shared/constants/index.js';
 import { env } from '../config/index.js';
 
 // General API rate limiter

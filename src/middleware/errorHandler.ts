@@ -5,7 +5,7 @@ import { AppError } from '../utils/appError.js';
 import { logger } from '../utils/logger.js';
 import { env } from '../config/index.js';
 import { sendError } from '../utils/response.js';
-import { HTTP_STATUS, ERROR_CODES } from '@shared/constants/index.js';
+import { HTTP_STATUS, ERROR_CODES } from '../../shared/constants/index.js';
 
 export function errorHandler(
   err: unknown,

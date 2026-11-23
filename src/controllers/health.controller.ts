@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { HealthService } from '../services/health.service.js';
 import { sendSuccess, sendError } from '../utils/response.js';
-import { HTTP_STATUS, ERROR_CODES } from '@shared/constants/index.js';
+import { HTTP_STATUS, ERROR_CODES } from '../../shared/constants/index.js';
 
 export class HealthController {
   public static async getHealth(_req: Request, res: Response, next: NextFunction): Promise<void> {

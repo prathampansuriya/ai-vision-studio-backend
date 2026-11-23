@@ -1,7 +1,7 @@
 import os from 'os';
 import { env } from '../config/index.js';
 import { PrismaService } from './prisma.service.js';
-import { SystemHealthResponse, ServiceHealthStatus } from '@shared/types/index.js';
+import { SystemHealthResponse, ServiceHealthStatus } from '../../shared/types/index.js';
 
 export class HealthService {
   public static async getSystemHealth(): Promise<SystemHealthResponse> {

@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 import { env } from '../config/env.config.js';
 import { InternalUsageInput } from '../validators/session.validator.js';
 import { sendSuccess } from '../utils/response.js';
-import { HTTP_STATUS } from '@shared/constants/index.js';
+import { HTTP_STATUS } from '../../shared/constants/index.js';
 
 function mapToolStatus(status?: string): ToolExecutionStatus {
   switch (status?.toUpperCase()) {

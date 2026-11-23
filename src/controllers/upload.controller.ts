@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { cloudinaryService } from '../integrations/cloudinary.service.js';
 import { UserService } from '../services/user.service.js';
 import { sendSuccess } from '../utils/response.js';
-import { HTTP_STATUS } from '@shared/constants/index.js';
+import { HTTP_STATUS } from '../../shared/constants/index.js';
 
 export class UploadController {
   /**

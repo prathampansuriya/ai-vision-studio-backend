@@ -8,7 +8,7 @@ import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/token.js';
 import { AppError } from '../utils/appError.js';
 import { env } from '../config/index.js';
-import { ERROR_CODES } from '@shared/constants/index.js';
+import { ERROR_CODES } from '../../shared/constants/index.js';
 import {
   RegisterInput,
   VerifyOtpInput,

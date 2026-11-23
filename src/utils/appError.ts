@@ -1,4 +1,4 @@
-import { HTTP_STATUS, ERROR_CODES } from '@shared/constants/index.js';
+import { HTTP_STATUS, ERROR_CODES } from '../../shared/constants/index.js';
 
 export class AppError extends Error {
   public readonly statusCode: number;

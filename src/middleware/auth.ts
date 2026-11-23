@@ -3,8 +3,8 @@ import { env } from '../config/index.js';
 import { verifyAccessToken } from '../utils/token.js';
 import { AppError } from '../utils/appError.js';
 import { PrismaService } from '../services/prisma.service.js';
-import { AuthUserContext, UserRole, AccountStatus } from '@shared/types/index.js';
-import { ERROR_CODES } from '@shared/constants/index.js';
+import { AuthUserContext, UserRole, AccountStatus } from '../../shared/types/index.js';
+import { ERROR_CODES } from '../../shared/constants/index.js';
 
 interface JwtUserPayload {
   sub: string;

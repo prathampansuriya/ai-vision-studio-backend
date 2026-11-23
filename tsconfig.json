@@ -14,11 +14,7 @@
     "isolatedModules": true,
     "sourceMap": true,
     "declaration": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@shared/*": ["shared/*"]
-    }
+    "baseUrl": "."
   },
   "include": ["src/**/*", "shared/**/*", "prisma/**/*"],
   "exclude": ["node_modules", "dist", "tests/**/*"]

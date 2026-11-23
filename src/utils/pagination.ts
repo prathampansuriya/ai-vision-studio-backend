@@ -1,5 +1,5 @@
-import { ApiResponseMeta, PaginatedResult } from '@shared/types/index.js';
-import { DEFAULT_PAGINATION } from '@shared/constants/index.js';
+import { ApiResponseMeta, PaginatedResult } from '../../shared/types/index.js';
+import { DEFAULT_PAGINATION } from '../../shared/constants/index.js';
 
 export function calculateSkipTake(page: number = DEFAULT_PAGINATION.PAGE, limit: number = DEFAULT_PAGINATION.LIMIT) {
   const sanitizedPage = Math.max(1, page);

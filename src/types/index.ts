@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { AuthUserContext } from '@shared/types/index.js';
+import { AuthUserContext } from '../../shared/types/index.js';
 
 export interface EntitlementContext {
   planTier: string;

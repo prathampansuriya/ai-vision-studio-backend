@@ -1,6 +1,6 @@
 import { Response } from 'express';
-import { ApiResponse, ApiResponseMeta, PaginatedResult } from '@shared/types/index.js';
-import { HTTP_STATUS, ERROR_CODES } from '@shared/constants/index.js';
+import { ApiResponse, ApiResponseMeta, PaginatedResult } from '../../shared/types/index.js';
+import { HTTP_STATUS, ERROR_CODES } from '../../shared/constants/index.js';
 
 export function sendSuccess<T>(
   res: Response,

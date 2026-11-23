@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { SnapshotService } from '../services/snapshot.service.js';
 import { sendSuccess } from '../utils/response.js';
-import { HTTP_STATUS } from '@shared/constants/index.js';
+import { HTTP_STATUS } from '../../shared/constants/index.js';
 
 export class SnapshotController {
   public static async capture(req: Request, res: Response, next: NextFunction): Promise<void> {

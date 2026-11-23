@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DEFAULT_PAGINATION } from '@shared/constants/index.js';
+import { DEFAULT_PAGINATION } from '../../shared/constants/index.js';
 import { passwordComplexitySchema } from '../utils/password.js';
 
 export const paginationQuerySchema = z.object({

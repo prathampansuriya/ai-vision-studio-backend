@@ -1,7 +1,7 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { env } from '../config/index.js';
 import { AppError } from './appError.js';
-import { ERROR_CODES } from '@shared/constants/index.js';
+import { ERROR_CODES } from '../../shared/constants/index.js';
 
 export function generateAccessToken(
   payload: Record<string, unknown>,

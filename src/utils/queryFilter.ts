@@ -1,4 +1,4 @@
-import { SortOrder } from '@shared/types/index.js';
+import { SortOrder } from '../../shared/types/index.js';
 
 export function sanitizeSearchQuery(query?: unknown): string | undefined {
   if (typeof query !== 'string') return undefined;
