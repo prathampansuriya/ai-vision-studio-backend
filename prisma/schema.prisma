@@ -1,0 +1,808 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==============================================================================
+// ENUMS
+// ==============================================================================
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  DEACTIVATED
+}
+
+enum PlanTier {
+  FREE
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+enum CreditTransactionType {
+  GRANT
+  USAGE
+  REFUND
+  ADJUSTMENT
+  EXPIRATION
+  PROMO
+}
+
+enum CreditFeatureType {
+  MULTIMODAL_STREAM
+  LIVE_TRANSCRIPTION
+  VISION_SNAPSHOT
+  TOOL_EXECUTION
+  REPORT_GENERATION
+  AUDIO_USAGE
+}
+
+enum ReservationStatus {
+  PENDING
+  SETTLED
+  RELEASED
+  EXPIRED
+}
+
+enum SessionMode {
+  LIVE_CAMERA
+  SCREEN_SHARE
+  VOICE
+  TEXT
+  COMBINED_MULTIMODAL
+  LEARNING
+  DEVELOPER
+  PRODUCTIVITY
+  LANGUAGE
+  MEETING
+  VISION
+  PRESENTATION
+  CUSTOM
+}
+
+enum SessionStatus {
+  CREATED
+  CONNECTING
+  ACTIVE
+  PAUSED
+  ENDED
+  FAILED
+}
+
+enum TranscriptSpeaker {
+  USER
+  AI
+  SYSTEM
+}
+
+enum MemoryCategory {
+  OBSERVATION
+  CONTEXT_SUMMARY
+  CURRENT_TASK
+  PROGRESS
+  KEY_FACT
+  USER_PINNED
+}
+
+enum MemoryImportance {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ToolExecutionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTING
+  SUCCESS
+  FAILED
+}
+
+enum NotificationType {
+  SYSTEM
+  SESSION
+  BILLING
+  CREDIT
+  SECURITY
+  AI_INSIGHT
+}
+
+enum PaymentEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+// ==============================================================================
+// 1. IDENTITY, ACCOUNTS & PROFILES
+// ==============================================================================
+
+model User {
+  id                      String                        @id @default(uuid())
+  email                   String                        @unique
+  name                    String?
+  passwordHash            String?
+  avatarUrl               String?
+  authProvider            AuthProvider                  @default(LOCAL)
+  accountStatus           AccountStatus                 @default(ACTIVE)
+  role                    Role                          @default(USER)
+  emailVerified           Boolean                       @default(false)
+  emailVerifiedAt         DateTime?
+  createdAt               DateTime                      @default(now())
+  updatedAt               DateTime                      @updatedAt
+
+  profile                 UserProfile?
+  oauthAccounts           OAuthAccount[]
+  emailVerifications      EmailVerification[]
+  passwordResets          PasswordReset[]
+  subscription            Subscription?
+  creditLedgerEntries     CreditLedger[]
+  creditUsages            CreditUsage[]
+  creditReservations      CreditReservation[]
+  sessions                AISession[]
+  snapshots               SessionSnapshot[]
+  savedInsights           SavedInsight[]
+  notifications           Notification[]
+  notificationPreferences UserNotificationPreferences?
+  sessionTemplates        SessionTemplate[]
+  sessionPresets          SessionPreset[]
+  snapshotComparisons     SnapshotComparison[]
+  sessionReports          SessionReport[]
+  recentSearches          RecentSearch[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  headline            String?
+  bio                 String?  @db.Text
+  company             String?
+  location            String?
+  timezone            String   @default("UTC")
+  preferredLanguage   String   @default("en")
+  theme               String   @default("system")
+  cameraDeviceId      String?
+  microphoneDeviceId  String?
+  speakerDeviceId     String?
+  aiVoice             String?  @default("Puck")
+  responseStyle       String?  @default("CONCISE")
+  personaTone         String?  @default("PROFESSIONAL")
+  volume              Int?     @default(100)
+  autoPlayAudio       Boolean? @default(true)
+  interruptSensitivity String? @default("BALANCED")
+  playbackSpeed       Float?   @default(1.0)
+  focusInstruction    String?  @default("TASK")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model OAuthAccount {
+  id                String    @id @default(uuid())
+  userId            String
+  provider          String    // e.g., "google"
+  providerAccountId String    // Google subject / user ID
+  email             String
+  profilePicture    String?
+  accessToken       String?   @db.Text
+  refreshToken      String?   @db.Text
+  expiresAt         DateTime?
+  tokenType         String?
+  scope             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+model EmailVerification {
+  id         String    @id @default(uuid())
+  userId     String
+  token      String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("email_verifications")
+}
+
+model PasswordReset {
+  id         String    @id @default(uuid())
+  userId     String
+  token      String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_resets")
+}
+
+// ==============================================================================
+// 2. SUBSCRIPTIONS & PLANS
+// ==============================================================================
+
+model Plan {
+  id                        String         @id @default(uuid())
+  tier                      PlanTier       @unique
+  name                      String
+  description               String?
+  stripeProductId           String?
+  stripeMonthlyPriceId      String?
+  stripeYearlyPriceId       String?
+  monthlyCredits            Int            @default(100)
+  maxSessionDurationSeconds Int            @default(1800)
+  maxConcurrentSessions     Int            @default(1)
+  supportsVision            Boolean        @default(true)
+  supportsScreenShare       Boolean        @default(true)
+  supportsVoice             Boolean        @default(true)
+  supportsToolCalling       Boolean        @default(true)
+  features                  Json?
+  isActive                  Boolean        @default(true)
+  sortOrder                 Int            @default(0)
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+
+  subscriptions             Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String             @unique
+  planId               String
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  billingInterval      BillingInterval    @default(MONTHLY)
+  status               SubscriptionStatus @default(INACTIVE)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                 Plan               @relation(fields: [planId], references: [id])
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+// ==============================================================================
+// 3. CREDIT LEDGER & USAGE
+// ==============================================================================
+
+model CreditLedger {
+  id            String                @id @default(uuid())
+  userId        String
+  amount        Int                   // positive for grants/refunds, negative for usage deductions
+  balanceAfter  Int                   // running balance snapshot guaranteeing auditability
+  type          CreditTransactionType
+  reason        String
+  referenceId   String?               // related CreditUsage ID, Stripe invoice ID, or admin ref
+  billingPeriod String?               // e.g. "2026-11"
+  metadata      Json?
+  createdAt     DateTime              @default(now())
+
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, billingPeriod])
+  @@map("credit_ledger")
+}
+
+model CreditUsage {
+  id              String            @id @default(uuid())
+  userId          String
+  sessionId       String?
+  creditsDeducted Int
+  feature         CreditFeatureType
+  modelUsed       String?
+  durationSeconds Int?
+  unitsConsumed   Int?              // frame count, audio seconds, or token count
+  billingPeriod   String?
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session         AISession?        @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, sessionId])
+  @@index([userId, billingPeriod])
+  @@map("credit_usages")
+}
+
+model CreditReservation {
+  id             String            @id @default(uuid())
+  userId         String
+  sessionId      String?
+  amount         Int               // Amount of credits held in escrow
+  status         ReservationStatus @default(PENDING)
+  feature        CreditFeatureType
+  expiresAt      DateTime
+  settledAmount  Int?              // Final amount settled
+  settledAt      DateTime?
+  releasedAt     DateTime?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session        AISession?        @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([sessionId])
+  @@map("credit_reservations")
+}
+
+// ==============================================================================
+// 4. SESSIONS & TEMPLATES
+// ==============================================================================
+
+model SessionTemplate {
+  id                   String      @id @default(uuid())
+  userId               String?     // null for system templates, non-null for user custom templates
+  name                 String      @default("")
+  title                String      @default("") // Synced with name for compatibility
+  slug                 String      @unique
+  description          String      @db.Text
+  category             String      // VISION, DEVELOPER, LEARNING, COPILOT, PRESENTATION, LANGUAGE, MEETING, GENERAL
+  defaultMode          SessionMode @default(VISION)
+  systemPrompt         String      @db.Text
+  defaultAiModel       String      @default("gemini-3.8-live")
+  preferredLanguage    String      @default("auto")
+  responseStyle        String      @default("CONCISE")
+  personaTone          String      @default("PROFESSIONAL")
+  aiVoice              String      @default("Puck")
+  focusInstruction     String      @default("TASK")
+  customFocus          String?     @db.Text
+  inputSource          String      @default("camera") // camera, screen, both
+  transcriptPreference String      @default("dual_isolated") // dual_isolated, user_only, ai_only
+  enabledTools         Json?
+  isSystem             Boolean     @default(false)
+  isFavorite           Boolean     @default(false)
+  isActive             Boolean     @default(true)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  user                 User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions             AISession[]
+
+  @@index([isSystem, category])
+  @@index([userId])
+  @@index([isFavorite])
+  @@map("session_templates")
+}
+
+model SessionPreset {
+  id               String      @id @default(uuid())
+  userId           String?     // null for system presets, non-null for user custom presets
+  name             String
+  slug             String      @unique
+  description      String      @db.Text
+  mode             SessionMode @default(COMBINED_MULTIMODAL)
+  focusInstruction String      @default("TASK") // CODE, TEXT, UI, OBJECTS, CHANGES, TASK, CUSTOM
+  customFocus      String?     @db.Text
+  responseStyle    String      @default("CONCISE") // CONCISE, DETAILED, SOCRATIC, EXECUTIVE, CASUAL
+  language         String      @default("auto")
+  aiVoice          String      @default("Puck")
+  enabledTools     Json?
+  inputSource      String      @default("both") // camera, screen, both
+  customPrompt     String?     @db.Text
+  isSystem         Boolean     @default(false)
+  isDefault        Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  user             User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions         AISession[]
+
+  @@index([userId])
+  @@index([isSystem, mode])
+  @@map("session_presets")
+}
+
+model AISession {
+  id                 String                     @id @default(uuid())
+  userId             String
+  templateId         String?
+  presetId           String?
+  title              String
+  mode               SessionMode                @default(COMBINED_MULTIMODAL)
+  status             SessionStatus              @default(CREATED)
+  streamCallId       String?                    @unique
+  inputSource        String?
+  aiModel            String                     @default("gemini-2.0-flash-exp")
+  transcriptionModel String                     @default("gemini-2.0-flash-exp")
+  userConfig         Json?
+  contextMetadata    Json?
+  startedAt          DateTime?
+  endedAt            DateTime?
+  durationSeconds    Int                        @default(0)
+  creditsConsumed    Int                        @default(0)
+  isArchived         Boolean                    @default(false)
+  isFavorite         Boolean                    @default(false)
+  hasAudioRecording  Boolean                    @default(false)
+  audioRecordingUrl  String?
+  hasVideoRecording  Boolean                    @default(false)
+  videoRecordingUrl  String?
+  recordingConsent   Boolean                    @default(false)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  user               User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template           SessionTemplate?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  preset             SessionPreset?             @relation(fields: [presetId], references: [id], onDelete: SetNull)
+  transcriptSegments SessionTranscriptSegment[]
+  summary            SessionSummary?
+  report             SessionReport?
+  snapshots          SessionSnapshot[]
+  memories           SessionMemory[]
+  insights           SavedInsight[]
+  toolExecutions     AIToolExecution[]
+  creditUsages       CreditUsage[]
+  creditReservations CreditReservation[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([userId, isArchived])
+  @@index([userId, isFavorite])
+  @@map("ai_sessions")
+}
+
+// ==============================================================================
+// 5. TRANSCRIPTS, SUMMARIES & SNAPSHOTS
+// ==============================================================================
+
+model SessionTranscriptSegment {
+  id             String            @id @default(uuid())
+  sessionId      String
+  speakerType    TranscriptSpeaker
+  speakerName    String?
+  text           String            @db.Text
+  isFinal        Boolean           @default(true)
+  language       String            @default("en")
+  sequenceNumber Int
+  startTimeMs    Int?
+  endTimeMs      Int?
+  confidence     Float?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+
+  session        AISession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, sequenceNumber])
+  @@index([sessionId, speakerType])
+  @@map("session_transcript_segments")
+}
+
+model SessionSummary {
+  id            String    @id @default(uuid())
+  sessionId     String    @unique
+  title         String
+  overview      String    @db.Text
+  keyPoints     Json
+  actionItems   Json
+  decisions     Json?
+  topicsCovered Json?
+  modelUsed     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  session       AISession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("session_summaries")
+}
+
+model SessionReport {
+  id                  String     @id @default(uuid())
+  sessionId           String     @unique
+  userId              String
+  title               String
+  overview            String     @db.Text
+  keyTopics           Json       // string[]
+  importantQuestions  Json       // Array<{ question: string; answer: string; asker?: string; answeredBy?: string; turnRef?: number }>
+  keyObservations     Json       // string[]
+  decisions           Json       // string[]
+  actionItems         Json       // Array<{ task: string; description: string; owner?: string; deadline?: string; priority?: string; transcriptReference?: string }>
+  taskChecklist       Json       // Array<{ id: string; text: string; completed: boolean; owner?: string }>
+  followUpQuestions   Json       // string[]
+  relevantSnapshots   Json       // Array<{ snapshotId: string; reason: string; label?: string; source?: string; thumbnail?: string }>
+  toolActivitySummary Json?      // Summary object: totalCount, successCount, failedCount, tools: string[]
+  sessionDuration     Int        @default(0)
+  creditsConsumed     Int        @default(0)
+  modelUsed           String     @default("gemini-2.5-flash")
+  metadata            Json?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  session             AISession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([sessionId])
+  @@map("session_reports")
+}
+
+model SessionSnapshot {
+  id                 String               @id @default(uuid())
+  sessionId          String
+  userId             String
+  cloudinaryUrl      String
+  cloudinaryPublicId String
+  captureTimestamp   DateTime             @default(now())
+  source             String               @default("CAMERA") // CAMERA | SCREEN | COMPOSITE
+  analysisStatus     String               @default("PENDING") // PENDING | ANALYZING | COMPLETED | FAILED
+  description        String?
+  aiAnalysis         String?              @db.Text
+  userNotes          String?              @db.Text
+  detectedObjects    Json?
+  extractedText      String?              @db.Text
+  annotations        Json?                // Vector strokes, boxes, text callouts
+  annotatedImageUrl  String?
+  annotatedPublicId  String?
+  width              Int?
+  height             Int?
+  sizeBytes          Int?
+  mimeType           String?              @default("image/jpeg")
+  metadata           Json?                // QA history, prompt history, client headers
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now()) @updatedAt
+
+  session            AISession            @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comparisonsAsA     SnapshotComparison[] @relation("SnapshotAComparisons")
+  comparisonsAsB     SnapshotComparison[] @relation("SnapshotBComparisons")
+
+  @@index([sessionId, captureTimestamp])
+  @@index([userId, captureTimestamp])
+  @@index([userId, source])
+  @@index([userId, analysisStatus])
+  @@map("session_snapshots")
+}
+
+model SnapshotComparison {
+  id             String           @id @default(uuid())
+  userId         String
+  snapshotAId    String
+  snapshotBId    String
+  prompt         String?
+  aiDifferences  String           @db.Text
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshotA      SessionSnapshot  @relation("SnapshotAComparisons", fields: [snapshotAId], references: [id], onDelete: Cascade)
+  snapshotB      SessionSnapshot  @relation("SnapshotBComparisons", fields: [snapshotBId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([snapshotAId])
+  @@index([snapshotBId])
+  @@map("snapshot_comparisons")
+}
+
+// ==============================================================================
+// 6. MEMORY, INSIGHTS & TOOL EXECUTIONS
+// ==============================================================================
+
+model SessionMemory {
+  id         String           @id @default(uuid())
+  sessionId  String
+  category   MemoryCategory
+  title      String
+  content    String           @db.Text
+  importance MemoryImportance @default(MEDIUM)
+  isPinned   Boolean          @default(false)
+  metadata   Json?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  session    AISession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, category])
+  @@index([sessionId, isPinned])
+  @@map("session_memories")
+}
+
+model SavedInsight {
+  id        String     @id @default(uuid())
+  userId    String
+  sessionId String?
+  title     String
+  content   String     @db.Text
+  category  String?
+  source    String?
+  tags      Json?
+  metadata  Json?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session   AISession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, category])
+  @@index([userId, createdAt])
+  @@map("saved_insights")
+}
+
+model RecentSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  query     String
+  category  String?  @default("ALL")
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("recent_searches")
+}
+
+model AIToolExecution {
+  id                  String              @id @default(uuid())
+  sessionId           String
+  toolName            String
+  callId              String?
+  arguments           Json?
+  status              ToolExecutionStatus @default(PENDING)
+  requiresApproval    Boolean             @default(false)
+  approvedAt          DateTime?
+  resultMetadata      Json?
+  errorMessage        String?
+  startedAt           DateTime            @default(now())
+  completedAt         DateTime?
+  executionDurationMs Int?
+  createdAt           DateTime            @default(now())
+
+  session             AISession           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, status])
+  @@index([sessionId, toolName])
+  @@map("ai_tool_executions")
+}
+
+// ==============================================================================
+// 7. NOTIFICATIONS, PREFERENCES & PAYMENT EVENTS
+// ==============================================================================
+
+model Notification {
+  id                String           @id @default(uuid())
+  userId            String
+  type              NotificationType
+  title             String
+  message           String           @db.Text
+  isRead            Boolean          @default(false)
+  readAt            DateTime?
+  relatedEntityType String?
+  relatedEntityId   String?
+  actionUrl         String?
+  createdAt         DateTime         @default(now())
+
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model UserNotificationPreferences {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  emailSessionSummaries Boolean  @default(true)
+  emailBillingAlerts    Boolean  @default(true)
+  emailCreditLowAlerts  Boolean  @default(true)
+  inAppSessionAlerts    Boolean  @default(true)
+  inAppSecurityAlerts   Boolean  @default(true)
+  creditThresholdAlert  Int      @default(50)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
+}
+
+model PaymentEvent {
+  id              String             @id @default(uuid())
+  stripeEventId   String             @unique
+  eventType       String
+  customerId      String?
+  subscriptionId  String?
+  status          PaymentEventStatus @default(PENDING)
+  payload         Json
+  processingError String?
+  processedAt     DateTime?
+  createdAt       DateTime           @default(now())
+
+  @@index([stripeEventId])
+  @@index([status])
+  @@map("payment_events")
+}
+
+// ==============================================================================
+// PUBLIC CONTACT & SUPPORT INQUIRIES
+// ==============================================================================
+
+enum ContactStatus {
+  UNREAD
+  READ
+  RESPONDED
+  ARCHIVED
+}
+
+model ContactInquiry {
+  id          String        @id @default(uuid())
+  referenceId String        @unique
+  name        String
+  email       String
+  category    String
+  subject     String
+  message     String        @db.Text
+  status      ContactStatus @default(UNREAD)
+  ipAddress   String?
+  userAgent   String?
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([referenceId])
+  @@index([email])
+  @@index([category])
+  @@index([status])
+  @@map("contact_inquiries")
+}
+
